@@ -22,14 +22,23 @@ The verified MCP C# SDK shape (`ModelContextProtocol`): `new HttpClientTransport
 
 ## Decisions
 
-### D7. Long-term = Meko over MCP, `memory_*` only
-`ILongTermMemory(Meko)` is an MCP client to `https://mcp.mekodata.ai/mcp` (Streamable HTTP, `mko_tkn_` bearer). Tool→method mapping: `AddFactAsync`→`memory_add(text)`; `RecordAsync`→`memory_add(messages)` (capture-gated); `SearchAsync`→`memory_search`; `GetAsync`→`memory_get_by_id`; `ListAsync`→`memory_get_all`; `UpdateAsync`→`memory_update`; `DeleteAsync`→`memory_delete_by_id`; `FlushAsync`→`flush_pending_memory_candidates`. Ignore `conversation_*`/`knowledgebase_*`.
+### D7. Long-term = Meko over MCP, `memory_*` + `conversation_create`
+`ILongTermMemory(Meko)` is an MCP client to `https://mcp.mekodata.ai/mcp` (Streamable HTTP, `mko_tkn_` bearer). Tool→method mapping: `AddFactAsync`→`memory_add(text)`; `RecordAsync`→`memory_add(messages)` (capture-gated); `SearchAsync`→`memory_search`; `GetAsync`→`memory_get_by_id`; `ListAsync`→`memory_get_all`; `UpdateAsync`→`memory_update`; `DeleteAsync`→`memory_delete_by_id`; `FlushAsync`→`flush_pending_memory_candidates`.
+
+**Live-verified correction (2026-05-29, against the real server):** `memory_add`/`memory_search`/`memory_get_all` **require** a `conversation_id` that is a UUID from **`conversation_create`**. So the implementation additionally uses **`conversation_create`** solely to obtain that required id (created lazily once per dmon session and cached). It still does **not** use the other `conversation_*` tools (`conversation_add_message`/`get`/`list`/`update`/`delete` — verbatim history is short-term's job) or `knowledgebase_*`. `messages` and `metadata` are passed as **JSON strings** (not structured objects), per the tool schemas. All Meko coupling stays behind `ILongTermMemory`.
 
 ### D8. Opt-in capture
 `RecordAsync` is gated by a capture policy (`MekoLongTermOptions`), defaulting to conservative (capture little or nothing) so recording a turn does not incur hosted distillation cost unless explicitly enabled. `RecordAsync` on a store that keeps nothing completes successfully (it must not throw to signal "nothing kept"). `AddFactAsync` always targets `memory_add(text)` (an explicit assertion, not gated by the capture policy).
 
-### D9. Scope model
-Bind once per session (ambient `MemoryContext`): `datapack_id` (config), `agent_id` (`"dmon"`), `conversation_id` (session id). Carry `MemoryScope` per call (default `Agent`). **Do not** set `run_id` (mem0's auto-expiring ephemeral tier — owned by short-term). A single `MemoryScope`→Meko-`scope`-string mapping point is the only place to adjust when Meko's accepted values are confirmed.
+### D9. Scope model — **revised against the live schema (2026-05-29)**
+The original D9 (map `MemoryScope`→Meko `scope` string; never set `run_id`) was wrong. The live tool schemas show Meko's actual model:
+- **`scope`** is a fixed required string — the schema literally says *"Pass `admin`."* It is **not** a memory-partition selector. The implementation sends `scope = "admin"` as a constant (one place; revisit if Meko widens it).
+- **`agent_id`** selects the isolated pgvector collection + AGE graph → bound to `"dmon"`.
+- **`conversation_id`** must be a UUID from `conversation_create`; it is used for trace nesting and does **not** filter results. The impl creates one lazily per dmon session and caches it.
+- **`run_id`** is the actual filter — it restricts a search to memories tagged with that conversation. So `MemoryScope` maps onto **`run_id`**, not `scope`: `MemoryScope.Session` → set `run_id` = the dmon session id (the value carried as `MemoryContext.ConversationId`), scoping add/search to this conversation; **`Agent`/`User`/`Shared`** (the durable scopes) → **omit** `run_id` for cross-conversation recall. (`User`/`Shared` distinctions beyond "durable/global" await a Meko mechanism — see Open Questions.)
+- **`datapack_id`** is an optional UUID; omit to use the caller's default datapack (only send it when a real datapack UUID is configured — a human-readable name is not accepted).
+
+The dmon-core `MemoryContext` abstraction is unchanged (`DatapackId`/`AgentId`/`ConversationId` = dmon session id); the Meko impl translates: `agent_id`←`AgentId`, `run_id`←`ConversationId` (when session-scoped), the Meko `conversation_id`←a cached `conversation_create` UUID, `datapack_id`←`DatapackId` (if a UUID). The `MemoryScope`→`run_id` policy and the `scope="admin"` constant are each a single adjustable point.
 
 ### D10. `MemoryHit` is the result currency
 Parse Meko results into `MemoryHit { Id, Text, Source = LongTerm, Score, Metadata?, Relations? }`. `Metadata` is `IReadOnlyDictionary<string, JsonElement>?` (Meko returns nested/loose JSON — no lossy stringification). `Relations` (Meko AGE graph edges) is populated for long-term and is the field short-term leaves null.
@@ -59,6 +68,7 @@ Additive — dmon-meko's first code. Long-term memory is opt-in and disable-able
 ## Open Questions
 
 - **[assumed → verify on Discord]** Semantics of `flush_pending_memory_candidates` (agent-directive vs. server barrier) and whether `memory_add` is synchronous or candidate-queued. *Default (5.1):* treat `memory_add` as synchronous-enough; `FlushAsync` acts on the directive; do not rely on long-term read-your-writes.
-- **[assumed → verify on Discord]** Accepted values for Meko's `scope` input and the mapping from mem0's id-filter model. *Default (5.2):* `MemoryScope { Session, Agent, User, Shared }`, default `Agent`; adjust the single mapping point when confirmed.
+- **[VERIFIED live, 2026-05-29 — supersedes the old 5.2 assumption]** Meko's `scope` is the fixed string `"admin"` (not a partition selector); partitioning is `agent_id` + `run_id` (+ `datapack_id`); `conversation_id` must come from `conversation_create`. `MemoryScope` now maps onto `run_id` (D9). Still open against Meko: whether there is any first-class mechanism for `User`/`Shared` (cross-agent / promotion) scopes beyond per-agent `run_id` filtering — for now they behave as "durable/global to the agent".
+- **[VERIFY live during rework]** The exact **result envelope** of `memory_search`/`memory_add`/`memory_get_all` (field names for id/text/score/relations/metadata) — the diagnostic probe is being re-run with correct args to capture a successful response, and `MekoResultParser` (D13) will be fixed against that real shape rather than the assumed `results[]` shape.
 - **[deferred — local choice]** Shape of the opt-in capture policy (per-turn vs. session-end, role/content filters, sampling). Decide during group 3; no external dependency.
 - **[process]** When to switch the `Dmon.Abstractions` project reference to a published `PackageReference`.

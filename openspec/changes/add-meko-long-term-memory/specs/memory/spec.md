@@ -2,7 +2,7 @@
 
 ### Requirement: Long-term memory is backed by Meko over MCP
 
-`ILongTermMemory` SHALL be implemented against the Meko MCP server (`https://mcp.mekodata.ai/mcp`, Streamable HTTP, `mko_tkn_` bearer auth) using only the `memory_*` tools. The implementation SHALL map: `AddFactAsync`→`memory_add(text)`, `RecordAsync`→`memory_add(messages)` (subject to opt-in capture), `SearchAsync`→`memory_search`, `GetAsync`→`memory_get_by_id`, `ListAsync`→`memory_get_all`, `UpdateAsync`→`memory_update`, `DeleteAsync`→`memory_delete_by_id`, and `FlushAsync`→`flush_pending_memory_candidates`. The implementation SHALL NOT use Meko's `conversation_*` or `knowledgebase_*` tools. All Meko-specific coupling SHALL be confined behind `ILongTermMemory`.
+`ILongTermMemory` SHALL be implemented against the Meko MCP server (`https://mcp.mekodata.ai/mcp`, Streamable HTTP, `mko_tkn_` bearer auth) using the `memory_*` tools plus `conversation_create`. The implementation SHALL map: `AddFactAsync`→`memory_add(text)`, `RecordAsync`→`memory_add(messages)` (subject to opt-in capture), `SearchAsync`→`memory_search`, `GetAsync`→`memory_get_by_id`, `ListAsync`→`memory_get_all`, `UpdateAsync`→`memory_update`, `DeleteAsync`→`memory_delete_by_id`, and `FlushAsync`→`flush_pending_memory_candidates`. Because `memory_add`/`memory_search`/`memory_get_all` require a `conversation_id` that is a UUID returned by `conversation_create`, the implementation SHALL call `conversation_create` to obtain one (lazily, once per dmon session, cached). The implementation SHALL pass `scope = "admin"` (the server's required fixed value) and SHALL serialize `messages` and `metadata` as JSON strings. The implementation SHALL NOT use any other `conversation_*` tool (`conversation_add_message`/`get`/`list`/`update`/`delete`) nor `knowledgebase_*`. All Meko-specific coupling SHALL be confined behind `ILongTermMemory`.
 
 #### Scenario: Fact assertion vs. raw capture
 - **WHEN** `AddFactAsync(fact)` is called
@@ -12,9 +12,9 @@
 - **WHEN** turns or text are submitted to long-term memory
 - **THEN** the implementation does not pre-curate which facts to keep; Meko's extraction pipeline derives the durable facts/relations
 
-#### Scenario: Out-of-scope tools are never called
+#### Scenario: Only the permitted tools are called
 - **WHEN** any long-term operation is invoked
-- **THEN** no `conversation_*` or `knowledgebase_*` tool is called
+- **THEN** only `memory_*` tools and `conversation_create` (for the required `conversation_id`) are called; no other `conversation_*` tool and no `knowledgebase_*` tool is called
 
 ### Requirement: Long-term results are parsed defensively
 
@@ -42,15 +42,19 @@ The Meko-backed `ILongTermMemory` SHALL apply a configurable capture policy to `
 
 ### Requirement: Scope model binds identity once and carries scope per call
 
-The implementation SHALL bind `datapack_id`, `agent_id`, and `conversation_id` once per session via an ambient memory context (`datapack_id` from configuration, `agent_id` = `"dmon"`, `conversation_id` = the dmon session id). The `scope` of a memory SHALL be supplied per write and per search as a `MemoryScope` (`Session`, `Agent`, `User`, `Shared`; default `Agent`). The implementation SHALL map `MemoryScope` to Meko's `scope` input through a single mapping point that can be adjusted once Meko's accepted values are confirmed. The implementation SHALL NOT populate Meko's `run_id`.
+The implementation SHALL bind identity once per session via an ambient memory context (`agent_id` = `"dmon"`, the dmon session id, and an optional configured `datapack_id`). It SHALL send Meko's `scope` as the fixed required value `"admin"`. It SHALL obtain Meko's required `conversation_id` from `conversation_create` (cached per session). It SHALL map the per-call `MemoryScope` (`Session`, `Agent`, `User`, `Shared`; default `Agent`) onto Meko's `run_id`: `Session` sets `run_id` to the dmon session id (scoping the operation to this conversation), while the durable scopes (`Agent`/`User`/`Shared`) omit `run_id` for cross-conversation recall. The `scope="admin"` constant and the `MemoryScope`→`run_id` policy SHALL each live at a single adjustable point. The implementation SHALL only send `datapack_id` when a real datapack UUID is configured (omit to use the caller's default).
 
 #### Scenario: Ambient identity is not repeated per call
 - **WHEN** any long-term operation is invoked
 - **THEN** `datapack_id` / `agent_id` / `conversation_id` are taken from the bound context, not passed by the caller
 
-#### Scenario: run_id is unused
-- **WHEN** the implementation issues any `memory_*` call
-- **THEN** it does not set `run_id`
+#### Scenario: Session scope filters by run_id; durable scopes do not
+- **WHEN** an operation is invoked with `MemoryScope.Session`
+- **THEN** the call sets Meko's `run_id` to the dmon session id (scoping it to this conversation); **WHEN** invoked with a durable scope (`Agent`/`User`/`Shared`), **THEN** `run_id` is omitted so recall spans conversations
+
+#### Scenario: Scope is always the server's fixed value
+- **WHEN** the implementation issues any `memory_*` or `conversation_create` call
+- **THEN** it passes `scope = "admin"`
 
 ### Requirement: Long-term consistency and flush are best-effort
 

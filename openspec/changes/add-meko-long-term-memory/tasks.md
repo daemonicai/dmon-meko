@@ -37,3 +37,15 @@ These are best-guess defaults so implementation is not blocked. Each is sealed b
 - [ ] 5.1 Proceed assuming `memory_add` is synchronous-enough and `FlushAsync` acts on the flush directive itself (scan recent turns + `memory_add`); do NOT rely on long-term read-your-writes. Verify Meko flush/`memory_add` semantics on Discord.
 - [ ] 5.2 Proceed with `MemoryScope { Session, Agent, User, Shared }`, default `Agent`, mapped to Meko's `scope` string. Verify accepted `scope` values on Discord and adjust the single mapping point.
 - [ ] 5.3 Decide the opt-in capture policy shape (per-turn vs. session-end, role/content filters, sampling). (Local choice — no external dependency.)
+
+## 6. Live-verified Meko schema alignment (rework after 4.6 probe)
+
+The live diagnostic probe (2026-05-29) showed the assumed arg/scope model was wrong. Rework the implementation to the real schema (see revised design D7/D9):
+
+- [ ] 6.1 Send `scope = "admin"` (fixed required constant) on every `memory_*` / `conversation_create` call — replace the `MemoryScope`→scope-string mapping in `MekoScopeMapping`
+- [ ] 6.2 Add a `conversation_create` flow: lazily create one Meko conversation UUID per dmon session, cache it, and pass it as the required `conversation_id` on `memory_*` calls (lift the "ignore conversation_*" ban for `conversation_create` only)
+- [ ] 6.3 Map `MemoryScope` onto `run_id`: `Session` → `run_id` = dmon session id; `Agent`/`User`/`Shared` → omit `run_id` (cross-conversation). Single adjustable policy point
+- [ ] 6.4 Pass `messages` and `metadata` as JSON **strings** (serialize), per the tool schemas; send `agent_id` from context; send `datapack_id` only when a real UUID is configured
+- [ ] 6.5 Fix `MekoResultParser` against the **real** `memory_search`/`memory_add`/`memory_get_all` response envelope (captured via the corrected diagnostic probe), not the assumed `results[]` shape
+- [ ] 6.6 Update the fake-invoker unit tests (4.1–4.5) to assert the corrected args (scope=admin, conversation_id present, run_id policy, JSON-string messages/metadata) and the real result shape
+- [ ] 6.7 Re-run the live smoke (4.6) green: `conversation_create` → `memory_add` → `memory_search` recalls the marker → cleanup

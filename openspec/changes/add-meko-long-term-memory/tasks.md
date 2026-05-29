@@ -7,7 +7,7 @@
 
 ## 2. MCP client + connection
 
-- [ ] 2.1 Add `ModelContextProtocol`; align its transitive `Microsoft.Extensions.AI.Abstractions` to dmon-core's 10.6.0 pin (avoid the ABI mismatch)
+- [ ] 2.1 Add `ModelContextProtocol`; align its transitive `Microsoft.Extensions.AI.Abstractions` to dmon-core's 10.5.1 pin (avoid the ABI mismatch)
 - [ ] 2.2 Build the connection: `HttpClientTransport` to `https://mcp.mekodata.ai/mcp` with `TransportMode = StreamableHttp` and `Authorization: Bearer <mko_tkn_…>` via `AdditionalHeaders`, key read from configuration; `McpClient.CreateAsync(transport)`
 - [ ] 2.3 Introduce the `IMekoToolInvoker` seam (single `CallToolAsync(tool, args, ct)` over `McpClient`) so the store is testable offline (D12)
 - [ ] 2.4 Bind ambient `MemoryContext` (datapack from config, `agent_id="dmon"`, `conversation_id`=session id); implement the single `MemoryScope`→Meko-`scope`-string mapping point; never set `run_id`

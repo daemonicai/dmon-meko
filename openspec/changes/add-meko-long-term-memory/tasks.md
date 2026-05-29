@@ -2,8 +2,8 @@
 
 ## 1. Solution bootstrap
 
-- [ ] 1.1 Create the dmon-meko solution and `src/Dmon.Memory.Meko` (project) + `test/Dmon.Memory.Meko.Tests`; add `Directory.Build.props` (net10.0, nullable enabled, `TreatWarningsAsErrors`, implicit usings) matching this repo's conventions
-- [ ] 1.2 Reference dmon-core's abstractions via `ProjectReference` to `../dmon-core/src/Dmon.Abstractions/Dmon.Abstractions.csproj` (TODO: swap to `PackageReference` once published); verify `dotnet build` and `dotnet format --verify-no-changes` are clean
+- [x] 1.1 Create the dmon-meko solution and `src/Dmon.Memory.Meko` (project) + `test/Dmon.Memory.Meko.Tests`; add `Directory.Build.props` (net10.0, nullable enabled, `TreatWarningsAsErrors`, implicit usings) matching this repo's conventions
+- [x] 1.2 Reference dmon-core's abstractions via `ProjectReference` to `../dmon-core/src/Dmon.Abstractions/Dmon.Abstractions.csproj` (TODO: swap to `PackageReference` once published); verify `dotnet build` and `dotnet format --verify-no-changes` are clean
 
 ## 2. MCP client + connection
 

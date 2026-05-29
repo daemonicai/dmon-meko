@@ -7,10 +7,10 @@
 
 ## 2. MCP client + connection
 
-- [ ] 2.1 Add `ModelContextProtocol`; align its transitive `Microsoft.Extensions.AI.Abstractions` to dmon-core's 10.5.1 pin (avoid the ABI mismatch)
-- [ ] 2.2 Build the connection: `HttpClientTransport` to `https://mcp.mekodata.ai/mcp` with `TransportMode = StreamableHttp` and `Authorization: Bearer <mko_tkn_…>` via `AdditionalHeaders`, key read from configuration; `McpClient.CreateAsync(transport)`
-- [ ] 2.3 Introduce the `IMekoToolInvoker` seam (single `CallToolAsync(tool, args, ct)` over `McpClient`) so the store is testable offline (D12)
-- [ ] 2.4 Bind ambient `MemoryContext` (datapack from config, `agent_id="dmon"`, `conversation_id`=session id); implement the single `MemoryScope`→Meko-`scope`-string mapping point; never set `run_id`
+- [x] 2.1 Add `ModelContextProtocol`; pin `Microsoft.Extensions.AI.Abstractions` to 10.5.2 (required by ModelContextProtocol 1.3.0; ABI-compatible with dmon-core's 10.5.1 — same `AssemblyVersion 10.5.0.0`)
+- [x] 2.2 Build the connection: `HttpClientTransport` to `https://mcp.mekodata.ai/mcp` with `TransportMode = StreamableHttp` and `Authorization: Bearer <mko_tkn_…>` via `AdditionalHeaders`, key read from configuration; `McpClient.CreateAsync(transport)`
+- [x] 2.3 Introduce the `IMekoToolInvoker` seam (single `CallToolAsync(tool, args, ct)` over `McpClient`) so the store is testable offline (D12)
+- [x] 2.4 Bind ambient `MemoryContext` (datapack from config, `agent_id="dmon"`, `conversation_id`=session id); implement the single `MemoryScope`→Meko-`scope`-string mapping point; never set `run_id`
 
 ## 3. ILongTermMemory(Meko)
 

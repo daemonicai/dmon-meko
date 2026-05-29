@@ -14,20 +14,20 @@
 
 ## 3. ILongTermMemory(Meko)
 
-- [ ] 3.1 Map all methods → `memory_*` tools (D7): `AddFactAsync`/`RecordAsync`→`memory_add`, `SearchAsync`→`memory_search`, `GetAsync`→`memory_get_by_id`, `ListAsync`→`memory_get_all`, `UpdateAsync`→`memory_update`, `DeleteAsync`→`memory_delete_by_id`, `FlushAsync`→`flush_pending_memory_candidates`; never call `conversation_*`/`knowledgebase_*`
-- [ ] 3.2 Defensive parsing (D13): map Meko's loose results into `MemoryHit` (`Source = LongTerm`, graph edges → `Relations`, extras → `Metadata` as `JsonElement`); missing/unexpected fields log + degrade, never throw into the caller
-- [ ] 3.3 Opt-in capture policy via `MekoLongTermOptions` (default conservative/none) gating `RecordAsync`→`memory_add(messages)`; `AddFactAsync` always asserts; a kept-nothing `RecordAsync` succeeds without throwing
-- [ ] 3.4 `FlushAsync` over `flush_pending_memory_candidates`; if it returns an agent-directive, act on it (scan recent turns + `memory_add`) — see assumed default 5.1
-- [ ] 3.5 Disabled/no-op `ILongTermMemory` (null object): writes no-op, reads return empty/null, no MCP call
-- [ ] 3.6 `AddMekoLongTermMemory(...)` `IServiceCollection` helper + options binding (the cross-tier `AddDmonMemory()` is the facade change)
+- [x] 3.1 Map all methods → `memory_*` tools (D7): `AddFactAsync`/`RecordAsync`→`memory_add`, `SearchAsync`→`memory_search`, `GetAsync`→`memory_get_by_id`, `ListAsync`→`memory_get_all`, `UpdateAsync`→`memory_update`, `DeleteAsync`→`memory_delete_by_id`, `FlushAsync`→`flush_pending_memory_candidates`; never call `conversation_*`/`knowledgebase_*`
+- [x] 3.2 Defensive parsing (D13): map Meko's loose results into `MemoryHit` (`Source = LongTerm`, graph edges → `Relations`, extras → `Metadata` as `JsonElement`); missing/unexpected fields log + degrade, never throw into the caller
+- [x] 3.3 Opt-in capture policy via `MekoLongTermOptions` (default conservative/none) gating `RecordAsync`→`memory_add(messages)`; `AddFactAsync` always asserts; a kept-nothing `RecordAsync` succeeds without throwing
+- [x] 3.4 `FlushAsync` over `flush_pending_memory_candidates`; if it returns an agent-directive, act on it (scan recent turns + `memory_add`) — see assumed default 5.1
+- [x] 3.5 Disabled/no-op `ILongTermMemory` (null object): writes no-op, reads return empty/null, no MCP call
+- [x] 3.6 `AddMekoLongTermMemory(...)` `IServiceCollection` helper + options binding (the cross-tier `AddDmonMemory()` is the facade change)
 
 ## 4. Tests (mocked MCP via fake invoker)
 
-- [ ] 4.1 Tool mapping: each method calls the expected `memory_*` tool with the expected args (fake `IMekoToolInvoker`)
-- [ ] 4.2 Defensive parsing: well-formed → mapped `MemoryHit`(+`Relations`); partial/malformed → degrades (empty/recognized-only) and does not throw
-- [ ] 4.3 Opt-in capture: default keeps nothing (no `memory_add` on `RecordAsync`, call still succeeds); opted-in policy calls `memory_add`
-- [ ] 4.4 Disabled/no-op path: operations no-op, `SearchAsync`/`ListAsync` return empty, no invoker calls
-- [ ] 4.5 Scope mapping (`MemoryScope`→Meko `scope`) and that `run_id` is never set
+- [x] 4.1 Tool mapping: each method calls the expected `memory_*` tool with the expected args (fake `IMekoToolInvoker`)
+- [x] 4.2 Defensive parsing: well-formed → mapped `MemoryHit`(+`Relations`); partial/malformed → degrades (empty/recognized-only) and does not throw
+- [x] 4.3 Opt-in capture: default keeps nothing (no `memory_add` on `RecordAsync`, call still succeeds); opted-in policy calls `memory_add`
+- [x] 4.4 Disabled/no-op path: operations no-op, `SearchAsync`/`ListAsync` return empty, no invoker calls
+- [x] 4.5 Scope mapping (`MemoryScope`→Meko `scope`) and that `run_id` is never set
 - [ ] 4.6 Live smoke test against the real Meko endpoint with `mko_tkn_` credentials [needs human verification — requires real creds; cannot be settled by automated gates]
 
 ## 5. Assumed defaults (proceed now; verify async on Discord)

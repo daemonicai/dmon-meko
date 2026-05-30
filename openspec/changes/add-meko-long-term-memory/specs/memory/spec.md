@@ -2,7 +2,7 @@
 
 ### Requirement: Long-term memory is backed by Meko over MCP
 
-`ILongTermMemory` SHALL be implemented against the Meko MCP server (`https://mcp.mekodata.ai/mcp`, Streamable HTTP, `mko_tkn_` bearer auth) using the `memory_*` tools plus `conversation_create`. The implementation SHALL map: `AddFactAsync`→`memory_add(text)`, `RecordAsync`→`memory_add(messages)` (subject to opt-in capture), `SearchAsync`→`memory_search`, `GetAsync`→`memory_get_by_id`, `ListAsync`→`memory_get_all`, `UpdateAsync`→`memory_update`, `DeleteAsync`→`memory_delete_by_id`, and `FlushAsync`→`flush_pending_memory_candidates`. Because `memory_add`/`memory_search`/`memory_get_all` require a `conversation_id` that is a UUID returned by `conversation_create`, the implementation SHALL call `conversation_create` to obtain one (lazily, once per dmon session, cached). The implementation SHALL pass `scope = "admin"` (the server's required fixed value) and SHALL serialize `messages` and `metadata` as JSON strings. The implementation SHALL NOT use any other `conversation_*` tool (`conversation_add_message`/`get`/`list`/`update`/`delete`) nor `knowledgebase_*`. All Meko-specific coupling SHALL be confined behind `ILongTermMemory`.
+`ILongTermMemory` SHALL be implemented against the Meko MCP server (`https://mcp.mekodata.ai/mcp`, Streamable HTTP, `mko_tkn_` bearer auth) using the `memory_*` tools plus `conversation_create`. The implementation SHALL map: `AddFactAsync`→`memory_add(text)`, `RecordAsync`→`memory_add(messages)` (subject to opt-in capture), `SearchAsync`→`memory_search`, `GetAsync`→`memory_get_by_id`, `ListAsync`→`memory_get_all`, `UpdateAsync`→`memory_update`, and `DeleteAsync`→`memory_delete_by_id`. (`FlushAsync` is a best-effort no-op — see the consistency requirement — since `flush_pending_memory_candidates` performs no server-side write and only returns an agent-directive.) Because `memory_add`/`memory_search`/`memory_get_all` require a `conversation_id` that is a UUID returned by `conversation_create`, the implementation SHALL call `conversation_create` to obtain one (lazily, once per dmon session, cached). The implementation SHALL pass `scope = "admin"` (the server's required fixed value) and SHALL serialize `messages` and `metadata` as JSON strings. The implementation SHALL NOT use any other `conversation_*` tool (`conversation_add_message`/`get`/`list`/`update`/`delete`) nor `knowledgebase_*`. All Meko-specific coupling SHALL be confined behind `ILongTermMemory`.
 
 #### Scenario: Fact assertion vs. raw capture
 - **WHEN** `AddFactAsync(fact)` is called
@@ -58,11 +58,11 @@ The implementation SHALL bind identity once per session via an ambient memory co
 
 ### Requirement: Long-term consistency and flush are best-effort
 
-Long-term memory SHALL be treated as eventually consistent and SHALL NOT promise read-your-writes. `FlushAsync` SHALL be a best-effort materialization barrier for long-term: it triggers Meko's pending-candidate handling (`flush_pending_memory_candidates`) and, if that returns an agent-directive, acts on it. `FlushAsync` SHALL return `ValueTask`.
+Long-term memory SHALL be treated as eventually consistent and SHALL NOT promise read-your-writes. **Live-verified (2026-05-30):** Meko's `flush_pending_memory_candidates` performs no server-side write — it only returns an *agent-directive* (a checklist telling a hook-less agent to scan recent turns and call `memory_add`). Because dmon captures explicitly via `memory_add` on `RecordAsync` (there is no client-side buffer to materialize) and acting on the directive is an agent-loop concern outside the store, `FlushAsync` for the Meko long-term tier SHALL be a best-effort no-op (it SHALL NOT depend on a server barrier and SHALL NOT promise that captured material is now recallable). `FlushAsync` SHALL return `ValueTask`.
 
-#### Scenario: Flush triggers pending-candidate handling
+#### Scenario: Flush is a best-effort no-op for long-term
 - **WHEN** `FlushAsync()` is called on the Meko store
-- **THEN** `flush_pending_memory_candidates` is invoked and any returned directive is acted upon
+- **THEN** it completes successfully without promising server-side materialization (Meko's flush tool performs no write; capture already happened at `RecordAsync`)
 
 #### Scenario: Read-your-writes is not promised for long-term
 - **WHEN** material is captured to long-term and immediately searched

@@ -34,7 +34,7 @@
 
 These are best-guess defaults so implementation is not blocked. Each is sealed behind `ILongTermMemory`, so a wrong guess is cheap to correct.
 
-- [ ] 5.1 **Partially verified live (2026-05-29):** `memory_add` is synchronous-enough (returns the created memory + id immediately) and long-term is NOT read-your-writes (search/get_all returned empty right after add — indexing lag confirmed). **Still open:** the exact behavior of `flush_pending_memory_candidates` (server barrier vs. agent-directive) was not exercised live; `FlushAsync` remains best-effort. Confirm flush semantics (Meko Discord or a dedicated flush probe) before relying on it.
+- [x] 5.1 **Verified live (2026-05-30):** `memory_add` is synchronous-enough (returns the created memory + id immediately); long-term is NOT read-your-writes (search/get_all empty right after add). `flush_pending_memory_candidates` is an **agent-directive that performs no server write** (and rejects `run_id`) — so `FlushAsync` is a best-effort no-op (impl corrected in 6.8), not a server barrier.
 - [x] 5.2 **Verified live (2026-05-29):** Meko's `scope` is the fixed string `"admin"`; partitioning is via `agent_id` + `run_id`. `MemoryScope` now maps onto `run_id` (Session→run_id; durable omit), not onto `scope`. Mapping adjusted accordingly (see section 6 + D9).
 - [x] 5.3 Decided + implemented: `MekoCaptureMode { None, EveryTurn }`, default `None` (conservative). (Local choice.)
 
@@ -49,3 +49,5 @@ The live diagnostic probe (2026-05-29) showed the assumed arg/scope model was wr
 - [x] 6.5 Fix `MekoResultParser` against the **real** `memory_search`/`memory_add`/`memory_get_all` response envelope (captured via the corrected diagnostic probe), not the assumed `results[]` shape
 - [x] 6.6 Update the fake-invoker unit tests (4.1–4.5) to assert the corrected args (scope=admin, conversation_id present, run_id policy, JSON-string messages/metadata) and the real result shape
 - [x] 6.7 Re-run the live smoke (4.6) green: `conversation_create` → `memory_add` → `memory_search` recalls the marker → cleanup
+- [x] 6.8 `FlushAsync` (Meko) is a best-effort **no-op** — live verified (2026-05-30) that `flush_pending_memory_candidates` performs no server write, only returns an agent-directive, and rejects `run_id`. Do NOT call the directive tool; update the flush unit test to assert no invoker call
+- [x] 6.9 Remove the temporary `Category=LiveFlush` probe (`MekoFlushProbeTests`)

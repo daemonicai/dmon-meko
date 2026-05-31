@@ -68,10 +68,8 @@ dotnet test  Dmon.Meko.slnx          # unit tests (offline; uses a fake MCP invo
 dotnet format --verify-no-changes    # style gate
 ```
 
-> **Cross-repo dependency:** `Dmon.Memory.Meko` references dmon-core's `Dmon.Abstractions` by
-> project path (`../dmon-core/src/Dmon.Abstractions`). Check out `dmon-core` as a sibling
-> directory on a branch that contains the `Memory/` contracts. This `ProjectReference` is
-> temporary and will become a `PackageReference` once `Dmon.Abstractions` is published.
+The memory contracts come from the **`Dmon.Abstractions`** NuGet package (a normal
+`PackageReference`), so a clean checkout builds without dmon-core present.
 
 ### Live smoke test (optional, hits the real Meko service)
 
@@ -115,6 +113,7 @@ the build/test/format/validate gates). Shipped changes are archived under
 
 ## Dependencies
 
+- `Dmon.Abstractions` — dmon's memory contracts (`ILongTermMemory`, `MemoryHit`, `MemoryScope`, …).
 - [`ModelContextProtocol`](https://github.com/modelcontextprotocol/csharp-sdk) — the C# MCP SDK.
 - `Microsoft.Extensions.AI.Abstractions` (pinned to dmon-core's `10.5.x` line) — `ChatMessage`, `IEmbeddingGenerator` contracts.
 - `Microsoft.Extensions.{Options,Configuration,DependencyInjection,Logging}.Abstractions`.

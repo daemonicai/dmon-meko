@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Dmon.Meko.slnx
+
+      - name: Build
+        run: dotnet build Dmon.Meko.slnx --no-restore --configuration Release
+
+      # Excludes the env-gated live integration test (Category=Live), which
+      # needs a real MEKO_API_KEY and network access to the Meko service.
+      - name: Test
+        run: dotnet test Dmon.Meko.slnx --no-restore --configuration Release --filter "Category!=Live"
+
+      - name: Format check
+        run: dotnet format Dmon.Meko.slnx --verify-no-changes

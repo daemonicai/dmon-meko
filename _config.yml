@@ -1,0 +1,20 @@
+remote_theme: daemonicai/dmon-pages
+baseurl: "/dmon-meko"
+url: "https://daemonicai.github.io"
+
+title: dmon-meko
+tagline: long-term memory for dmon
+description: Meko-backed long-term memory for dmon — a durable, cross-session ILongTermMemory implementation driven over the Meko agent-native data layer via MCP.
+
+github:
+  owner: daemonicai
+  repo: dmon-meko
+org_url: "https://github.com/daemonicai"
+
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+
+defaults:
+  - scope: { path: "" }
+    values: { layout: home }

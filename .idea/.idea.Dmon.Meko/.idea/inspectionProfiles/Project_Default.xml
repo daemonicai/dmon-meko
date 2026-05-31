@@ -1,0 +1,37 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="aio-request" />
+          <option value="aiohttp" />
+          <option value="aiojobs" />
+          <option value="aiopg" />
+          <option value="alembic" />
+          <option value="anna-address-client" />
+          <option value="anna-auth-client" />
+          <option value="anna-auth-gateway-client" />
+          <option value="anna-banking-service-lib" />
+          <option value="anna-business-admin-service-lib" />
+          <option value="anna-feature-toggle-client" />
+          <option value="anna-metrics-lib" />
+          <option value="anna-pdf-client" />
+          <option value="anna-rmq" />
+          <option value="anna-schema" />
+          <option value="anna-task-manager-client" />
+          <option value="asyncpg_listen" />
+          <option value="beautifulsoup4" />
+          <option value="marshmallow" />
+          <option value="marshmallow-recipe" />
+          <option value="prometheus-client" />
+          <option value="pycares" />
+          <option value="python-dateutil" />
+          <option value="sentry-sdk" />
+          <option value="SQLAlchemy" />
+          <option value="yarl" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src\Dmon.Memory.Meko\Dmon.Memory.Meko.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test\Dmon.Memory.Meko.Tests\Dmon.Memory.Meko.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Dmon.Meko.slnx
+
+      - name: Build
+        run: dotnet build Dmon.Meko.slnx --no-restore --configuration Release
+
+      # Excludes the env-gated live integration test (Category=Live), which
+      # needs a real MEKO_API_KEY and network access to the Meko service.
+      - name: Test
+        run: dotnet test Dmon.Meko.slnx --no-restore --configuration Release --filter "Category!=Live"
+
+      - name: Format check
+        run: dotnet format Dmon.Meko.slnx --verify-no-changes
+
+      - name: Pack
+        run: dotnet pack src/Dmon.Memory.Meko/Dmon.Memory.Meko.csproj --no-build --configuration Release -o artifacts
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts/*.*nupkg
+
+  publish:
+    # Publishes to NuGet.org only when a GitHub Release is published.
+    # Requires a repository secret: NUGET_API_KEY.
+    needs: build-test
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Package version comes from the release tag (e.g. tag "v0.2.0" -> 0.2.0),
+      # overriding the csproj default. NuGet prerelease tags (e.g. v0.2.0-beta) pass through.
+      - name: Pack (version from release tag)
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          echo "Packing version $VERSION"
+          dotnet pack src/Dmon.Memory.Meko/Dmon.Memory.Meko.csproj --configuration Release -o artifacts -p:Version="$VERSION"
+
+      - name: Push to NuGet
+        run: dotnet nuget push "artifacts/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate

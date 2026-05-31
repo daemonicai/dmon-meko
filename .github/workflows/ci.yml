@@ -55,8 +55,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Pack
-        run: dotnet pack src/Dmon.Memory.Meko/Dmon.Memory.Meko.csproj --configuration Release -o artifacts
+      # Package version comes from the release tag (e.g. tag "v0.2.0" -> 0.2.0),
+      # overriding the csproj default. NuGet prerelease tags (e.g. v0.2.0-beta) pass through.
+      - name: Pack (version from release tag)
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          echo "Packing version $VERSION"
+          dotnet pack src/Dmon.Memory.Meko/Dmon.Memory.Meko.csproj --configuration Release -o artifacts -p:Version="$VERSION"
 
       - name: Push to NuGet
         run: dotnet nuget push "artifacts/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
